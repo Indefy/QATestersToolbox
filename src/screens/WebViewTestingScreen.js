@@ -1,18 +1,23 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
-  TextInput,
-  StyleSheet,
   ScrollView,
   Text,
   TouchableOpacity,
   Modal,
+  StyleSheet,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import CustomButton from '../components/CustomButton';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GlassContainer } from '../components/ui/GlassContainer';
+import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { GlassInput } from '../components/ui/GlassInput';
+import { colors, typography, borderRadius, shadows } from '../styles/theme';
 import ElementInspector from '../components/ElementInspector';
 import PerformanceMetrics from '../components/PerformanceMetrics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const WebViewTestingScreen = () => {
   const [url, setUrl] = useState('');
@@ -35,12 +40,11 @@ const WebViewTestingScreen = () => {
   const [activeTab, setActiveTab] = useState('console');
   const [isInspectorMode, setIsInspectorMode] = useState(false);
   const [webViewReady, setWebViewReady] = useState(false);
-  
+
   const webViewRef = useRef(null);
   const urlInputRef = useRef(null);
   const urlLoadTimeoutRef = useRef(null);
 
-  // Create a blank HTML page with a basic structure
   const blankHtml = `
     <!DOCTYPE html>
     <html>
@@ -74,7 +78,6 @@ const WebViewTestingScreen = () => {
     </html>
   `;
 
-  // Enhanced injected JavaScript with all functionality restored
   const injectedJavaScript = `
     (function() {
       // Console logging
@@ -329,7 +332,6 @@ const WebViewTestingScreen = () => {
         case 'performance':
           if (!data.metrics) return;
           
-          // Only keep essential metrics data to reduce payload size
           const metrics = {
             fps: data.metrics.fps,
             domNodes: data.metrics.domNodes,
@@ -448,15 +450,12 @@ const WebViewTestingScreen = () => {
 
   const isValidUrl = (string) => {
     try {
-      // First, clean up the URL
       let urlToTest = string.trim();
       
-      // If it doesn't have a protocol, add https://
       if (!urlToTest.startsWith('http://') && !urlToTest.startsWith('https://')) {
         urlToTest = 'https://' + urlToTest;
       }
       
-      // Try to create a URL object
       new URL(urlToTest);
       return true;
     } catch (e) {
@@ -464,418 +463,181 @@ const WebViewTestingScreen = () => {
     }
   };
 
-  const loadUrl = useCallback((urlToLoad) => {
-    if (!urlToLoad) {
+  const handleLoadUrl = () => {
+    if (!url) {
       setUrlError('Please enter a URL');
       return;
     }
 
-    // Clean up the URL
-    let processedUrl = urlToLoad.trim();
-    
-    // Remove any existing protocol
-    processedUrl = processedUrl.replace(/^https?:\/\//, '');
-    
-    // Add https:// protocol
-    processedUrl = 'https://' + processedUrl;
+    let processedUrl = url.trim();
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
+      processedUrl = 'https://' + processedUrl;
+    }
 
     if (isValidUrl(processedUrl)) {
       setUrlError('');
       setCurrentLoadedUrl(processedUrl);
+      setWebViewReady(true);
     } else {
       setUrlError('Invalid URL format. Please enter a valid website address.');
     }
-  }, []);
+  };
 
   const handleUrlChange = (text) => {
-    // Remove https:// prefix if user types it (since we show it separately)
-    const cleanText = text.replace(/^https?:\/\//, '');
-    setUrl(cleanText);
-
-    if (urlLoadTimeoutRef.current) {
-      clearTimeout(urlLoadTimeoutRef.current);
-    }
-  };
-
-  const handleUrlSubmit = () => {
-    if (urlLoadTimeoutRef.current) {
-      clearTimeout(urlLoadTimeoutRef.current);
-    }
-    
-    // Get the raw URL input
-    let finalUrl = url.trim();
-    
-    // Remove https:// if user somehow included it
-    finalUrl = finalUrl.replace(/^https?:\/\//, '');
-    
-    loadUrl(finalUrl);
-  };
-
-  const handleWebViewError = (syntheticEvent) => {
-    const { nativeEvent } = syntheticEvent;
-    if (nativeEvent.code === -2) { // ERR_NAME_NOT_RESOLVED
-      setUrlError('Could not resolve the website address');
-    } else {
-      setUrlError(`Error loading page: ${nativeEvent.description}`);
-    }
-  };
-
-  const renderDevToolsTabs = () => (
-    <View style={styles.tabContainer}>
-      <TouchableOpacity
-        style={[styles.tab, activeTab === 'console' && styles.activeTab]}
-        onPress={() => setActiveTab('console')}
-      >
-        <Text style={styles.tabText}>Console</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.tab, activeTab === 'network' && styles.activeTab]}
-        onPress={() => setActiveTab('network')}
-      >
-        <Text style={styles.tabText}>Network</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.tab, activeTab === 'inspector' && styles.activeTab]}
-        onPress={() => setActiveTab('inspector')}
-      >
-        <Text style={styles.tabText}>Inspector</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.tab, activeTab === 'performance' && styles.activeTab]}
-        onPress={() => setActiveTab('performance')}
-      >
-        <Text style={styles.tabText}>Performance</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderConsoleTab = () => {
-    try {
-      if (!Array.isArray(consoleMessages)) {
-        console.warn('consoleMessages is not an array:', consoleMessages);
-        return null;
-      }
-
-      return (
-        <ScrollView style={styles.tabContent}>
-          {consoleMessages.map((msg, index) => (
-            <View key={index} style={styles.logEntry}>
-              <Text style={[styles.timestamp, styles.smallText]}>
-                {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : 'No timestamp'}
-              </Text>
-              <Text style={[
-                styles.logMessage,
-                msg.level === 'error' && styles.errorLog,
-                msg.level === 'warn' && styles.warnLog
-              ]}>
-                {msg.message || 'No message'}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      );
-    } catch (error) {
-      console.error('Error rendering console tab:', error);
-      return (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Error displaying console: {error.message}</Text>
-        </View>
-      );
-    }
-  };
-
-  const renderNetworkTab = () => (
-    <ScrollView style={styles.tabContent}>
-      {networkRequests.map((request, index) => (
-        <View key={index} style={styles.networkEntry}>
-          <Text style={styles.smallText}>{new Date(request.timestamp).toLocaleTimeString()}</Text>
-          <Text style={[
-            styles.networkUrl,
-            request.status === 'error' && styles.errorText
-          ]}>
-            {request.url}
-          </Text>
-          {request.duration && (
-            <Text style={styles.duration}>{Math.round(request.duration)}ms</Text>
-          )}
-          {request.error && (
-            <Text style={styles.errorText}>{request.error}</Text>
-          )}
-        </View>
-      ))}
-    </ScrollView>
-  );
-
-  const renderPerformanceTab = () => {
-    if (!performanceMetrics) return null;
-    
-    return (
-      <ScrollView style={styles.tabContent}>
-        <View style={styles.metricsContainer}>
-          <Text style={styles.metricLabel}>
-            FPS: {performanceMetrics.fps && performanceMetrics.fps.length > 0 ? 
-              performanceMetrics.fps[performanceMetrics.fps.length - 1] : '0'}
-          </Text>
-          <Text style={styles.metricLabel}>
-            DOM Nodes: {performanceMetrics.domNodes || '0'}
-          </Text>
-          <Text style={styles.metricLabel}>
-            Memory Usage: {performanceMetrics.memory && performanceMetrics.memory.usedJSHeapSize ? 
-              `${(performanceMetrics.memory.usedJSHeapSize / (1024 * 1024)).toFixed(1)}MB / 
-               ${(performanceMetrics.memory.totalJSHeapSize / (1024 * 1024)).toFixed(1)}MB` : 
-              'Not available'}
-          </Text>
-          <Text style={styles.metricLabel}>
-            Resources: {performanceMetrics.resourceCount || '0'}
-          </Text>
-          <Text style={styles.metricLabel}>
-            Load Time: {performanceMetrics.pageLoadTime ? `${performanceMetrics.pageLoadTime}ms` : 'Not available'}
-          </Text>
-        </View>
-      </ScrollView>
-    );
-  };
-
-  const renderDevToolsContent = () => {
-    try {
-      switch (activeTab) {
-        case 'console':
-          return renderConsoleTab();
-        case 'network':
-          return renderNetworkTab();
-        case 'inspector':
-          return <ElementInspector selectedElement={selectedElement} />;
-        case 'performance':
-          return renderPerformanceTab();
-        default:
-          return null;
-      }
-    } catch (error) {
-      console.error('Error rendering DevTools content:', error);
-      return (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Error displaying content: {error.message}</Text>
-        </View>
-      );
-    }
+    setUrl(text);
+    setUrlError('');
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.urlContainer}>
-        <View style={styles.urlInputContainer}>
-          <Text style={styles.urlPrefix}>https://</Text>
-          <TextInput
-            ref={urlInputRef}
-            style={styles.urlInput}
+    <LinearGradient
+      colors={[colors.background, '#2A2A4A']}
+      style={styles.gradient}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <GlassContainer style={styles.urlContainer}>
+          <GlassInput
+            label="Enter URL"
             value={url}
-            onChangeText={handleUrlChange}
-            placeholder="Enter website address"
+            onChangeText={(text) => {
+              setUrl(text);
+              setUrlError('');
+            }}
+            placeholder="https://example.com"
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
-            onSubmitEditing={handleUrlSubmit}
-            returnKeyType="go"
           />
-        </View>
-        <View style={styles.buttonsContainer}>
-          <CustomButton
-            title="Go"
-            onPress={handleUrlSubmit}
-            style={styles.goButton}
-          />
-          <CustomButton
-            title={isRecording ? "Stop Recording" : "Start Recording"}
-            onPress={toggleRecording}
-            style={[styles.button, isRecording && styles.recordingButton]}
-          />
-          <CustomButton
-            title={isInspectorMode ? "Stop Inspect" : "Inspect"}
-            onPress={toggleInspector}
-            style={[styles.button, isInspectorMode && styles.inspectorButton]}
-          />
-          <CustomButton
-            title={showDevTools ? "Hide DevTools" : "Show DevTools"}
-            onPress={() => setShowDevTools(!showDevTools)}
-            style={styles.button}
-          />
-        </View>
-      </View>
+          {urlError ? (
+            <Text style={styles.errorText}>{urlError}</Text>
+          ) : null}
+          <View style={styles.buttonContainer}>
+            <AnimatedButton
+              onPress={handleLoadUrl}
+              style={styles.button}
+              variant="primary"
+            >
+              <Text style={styles.buttonText}>Load URL</Text>
+            </AnimatedButton>
+          </View>
+        </GlassContainer>
 
-      {urlError ? (
-        <Text style={styles.errorText}>{urlError}</Text>
-      ) : null}
+        <GlassContainer style={styles.webviewContainer}>
+          {webViewReady && currentLoadedUrl ? (
+            <WebView
+              ref={webViewRef}
+              source={{ uri: currentLoadedUrl }}
+              onLoad={handleWebViewLoad}
+              onError={handleError}
+              onMessage={handleMessage}
+              injectedJavaScript={injectedJavaScript}
+              startInLoadingState={true}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              style={styles.webview}
+            />
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Text style={styles.placeholderText}>
+                Enter a URL above to start testing
+              </Text>
+            </View>
+          )}
+        </GlassContainer>
 
-      <View style={styles.webviewContainer}>
-        <WebView
-          ref={webViewRef}
-          source={currentLoadedUrl ? { uri: currentLoadedUrl } : { html: blankHtml }}
-          onLoad={handleWebViewLoad}
-          onError={handleError}
-          onMessage={handleMessage}
-          injectedJavaScript={injectedJavaScript}
-          startInLoadingState={true}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          style={styles.webview}
-        />
-      </View>
+        <View style={styles.controlsContainer}>
+          <GlassContainer style={styles.metricsContainer}>
+            <PerformanceMetrics performanceMetrics={performanceMetrics} />
+          </GlassContainer>
 
-      {showDevTools && (
-        <View style={styles.devTools}>
-          {renderDevToolsTabs()}
-          {renderDevToolsContent()}
+          <View style={styles.actionButtons}>
+            <AnimatedButton
+              onPress={toggleRecording}
+              variant={isRecording ? "accent" : "secondary"}
+              style={styles.actionButton}
+            >
+              <Text style={styles.buttonText}>
+                {isRecording ? 'Stop Recording' : 'Start Recording'}
+              </Text>
+            </AnimatedButton>
+
+            <AnimatedButton
+              onPress={toggleInspector}
+              variant="primary"
+              style={styles.actionButton}
+            >
+              <Text style={styles.buttonText}>
+                Toggle Inspector
+              </Text>
+            </AnimatedButton>
+          </View>
         </View>
-      )}
-    </View>
+      </ScrollView>
+
+      <Modal
+        visible={showDevTools}
+        onRequestClose={() => setShowDevTools(false)}
+      >
+        <ElementInspector selectedElement={selectedElement} />
+      </Modal>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f4f4f4',
+  },
+  contentContainer: {
+    padding: 16,
   },
   urlContainer: {
-    padding: 10,
-    flexDirection: 'column',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    gap: 10,
-  },
-  urlInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    height: 40,
-  },
-  urlPrefix: {
-    color: '#666',
-    fontSize: 14,
-    paddingLeft: 10,
-  },
-  urlInput: {
-    flex: 1,
-    height: 40,
-    paddingHorizontal: 5,
-  },
-  buttonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  goButton: {
-    width: 50,
-    height: 40,
-    marginHorizontal: 5,
-  },
-  button: {
-    marginHorizontal: 5,
-    paddingHorizontal: 10,
-    height: 40,
-  },
-  recordingButton: {
-    backgroundColor: '#dc3545',
-  },
-  inspectorButton: {
-    backgroundColor: '#28a745',
+    marginBottom: 16,
   },
   webviewContainer: {
-    flex: 1,
+    height: 400,
+    marginBottom: 16,
   },
-  webview: {
-    flex: 1,
-  },
-  devTools: {
-    height: 300,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  tab: {
-    flex: 1,
-    padding: 10,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#007AFF',
-  },
-  tabText: {
-    color: '#333',
-  },
-  tabContent: {
-    flex: 1,
-    padding: 10,
-  },
-  logEntry: {
-    marginBottom: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 5,
-  },
-  networkEntry: {
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 5,
-  },
-  timestamp: {
-    color: '#666',
-  },
-  smallText: {
-    fontSize: 12,
-  },
-  logMessage: {
-    fontSize: 13,
-    fontFamily: 'monospace',
-  },
-  errorLog: {
-    color: '#dc3545',
-  },
-  warnLog: {
-    color: '#ffc107',
-  },
-  networkUrl: {
-    fontSize: 13,
-    fontFamily: 'monospace',
-    color: '#0066cc',
-  },
-  duration: {
-    fontSize: 12,
-    color: '#28a745',
+  controlsContainer: {
+    gap: 16,
   },
   metricsContainer: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    elevation: 2,
+    marginBottom: 16,
   },
-  metricLabel: {
-    fontSize: 14,
-    marginBottom: 10,
-    fontFamily: 'monospace',
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
   },
-  errorContainer: {
-    padding: 15,
-    margin: 10,
-    backgroundColor: '#ffebee',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ffcdd2',
+  actionButton: {
+    flex: 1,
+  },
+  buttonContainer: {
+    marginTop: 16,
+  },
+  button: {
+    width: '100%',
+  },
+  buttonText: {
+    color: colors.text,
+    ...typography.body,
+    fontWeight: '600',
   },
   errorText: {
-    color: '#b71c1c',
-    fontSize: 14,
+    color: colors.error,
+    ...typography.caption,
+    marginTop: 4,
+  },
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: colors.textSecondary,
+    ...typography.body,
   },
 });
 

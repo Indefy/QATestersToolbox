@@ -1,76 +1,64 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
+import { colors, typography, borderRadius } from '../styles/theme';
 
-const PerformanceMetrics = ({ metrics }) => {
-  const formatData = (data, label) => ({
-    labels: data.map((_, i) => `${i * 5}s`),
-    datasets: [{
-      data: data,
-      color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
-    }],
-    legend: [label],
-  });
+const MetricItem = ({ label, value }) => (
+  <View style={styles.metricItem}>
+    <Text style={styles.metricLabel}>{label}</Text>
+    <Text style={styles.metricValue}>{value}</Text>
+  </View>
+);
+
+const PerformanceMetrics = ({ performanceMetrics = {} }) => {
+  const formatMemory = (bytes) => {
+    if (typeof bytes !== 'number' || isNaN(bytes)) return 'N/A';
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatTime = (ms) => {
+    if (typeof ms !== 'number' || isNaN(ms)) return 'N/A';
+    return `${ms} ms`;
+  };
+
+  const formatFPS = (fps) => {
+    if (typeof fps !== 'number' || isNaN(fps)) return 'N/A';
+    return fps.toFixed(1);
+  };
+
+  const formatNumber = (num) => {
+    if (typeof num !== 'number' || isNaN(num)) return 'N/A';
+    return num.toString();
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Performance Metrics</Text>
-
-      <View style={styles.metricContainer}>
-        <Text style={styles.metricTitle}>FPS</Text>
-        <LineChart
-          data={formatData(metrics.fps, 'FPS')}
-          width={300}
-          height={150}
-          chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-          }}
-          bezier
-          style={styles.chart}
+      
+      <View style={styles.metricsGrid}>
+        <MetricItem 
+          label="FPS" 
+          value={formatFPS(performanceMetrics?.fps)}
         />
-      </View>
-
-      <View style={styles.metricContainer}>
-        <Text style={styles.metricTitle}>Memory Usage (MB)</Text>
-        <LineChart
-          data={formatData(metrics.memory, 'Memory')}
-          width={300}
-          height={150}
-          chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-          }}
-          bezier
-          style={styles.chart}
+        
+        <MetricItem 
+          label="DOM Nodes" 
+          value={formatNumber(performanceMetrics?.domNodes)}
         />
-      </View>
-
-      <View style={styles.statsContainer}>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>Page Load Time</Text>
-          <Text style={styles.statValue}>{metrics.pageLoadTime}ms</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>DOM Nodes</Text>
-          <Text style={styles.statValue}>{metrics.domNodes}</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>JS Heap Size</Text>
-          <Text style={styles.statValue}>{Math.round(metrics.jsHeapSize / 1024 / 1024)}MB</Text>
-        </View>
+        
+        <MetricItem 
+          label="Memory Usage" 
+          value={formatMemory(performanceMetrics?.jsHeapSize)}
+        />
+        
+        <MetricItem 
+          label="Resources" 
+          value={formatNumber(performanceMetrics?.resourceCount)}
+        />
+        
+        <MetricItem 
+          label="Load Time" 
+          value={formatTime(performanceMetrics?.pageLoadTime)}
+        />
       </View>
     </View>
   );
@@ -78,48 +66,36 @@ const PerformanceMetrics = ({ metrics }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 10,
-    backgroundColor: '#fff',
+    padding: 16,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
+    ...typography.h2,
+    color: colors.text,
+    marginBottom: 16,
   },
-  metricContainer: {
-    marginBottom: 20,
-  },
-  metricTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  statsContainer: {
+  metricsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
+    flexWrap: 'wrap',
+    gap: 16,
   },
-  stat: {
+  metricItem: {
     flex: 1,
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginHorizontal: 5,
+    minWidth: 140,
+    backgroundColor: colors.glass,
+    borderRadius: borderRadius.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 5,
+  metricLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: 4,
   },
-  statValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
+  metricValue: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
   },
 });
 
