@@ -10,6 +10,7 @@ import TestCasesScreen from '../screens/TestCasesScreen';
 import BugReportScreen from '../screens/BugReportScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import WebViewTestingScreen from '../screens/WebViewTestingScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -68,6 +69,15 @@ const AppNavigator = () => {
                 <MaterialIcons name="assessment" color={color} size={size} />
               )
             }} 
+          />
+          <Tab.Screen 
+            name="WebView Testing"
+            component={WebViewTestingScreen}
+            options={{
+              tabBarIcon: ({ color, size }) => (
+                <MaterialIcons name="web" size={size} color={color} />
+              ),
+            }}
           />
           <Tab.Screen 
             name="Settings" 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   View, 
   Text, 
   StyleSheet, 
@@ -9,6 +9,7 @@ import {
   TextInput 
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CustomButton from '../components/CustomButton';
 
 const TestCasesScreen = () => {
   const [testCases, setTestCases] = useState([]);
@@ -21,34 +22,33 @@ const TestCasesScreen = () => {
   });
 
   useEffect(() => {
-    // Load test cases from AsyncStorage
-    const loadTestCases = async () => {
-      try {
-        const storedTestCases = await AsyncStorage.getItem('testCases');
-        if (storedTestCases) {
-          setTestCases(JSON.parse(storedTestCases));
-        }
-      } catch (error) {
-        console.error('Error loading test cases:', error);
-      }
-    };
-
     loadTestCases();
   }, []);
 
+  const loadTestCases = async () => {
+    try {
+      const storedTestCases = await AsyncStorage.getItem('testCases');
+      if (storedTestCases) {
+        setTestCases(JSON.parse(storedTestCases));
+      }
+    } catch (error) {
+      console.error('Error loading test cases:', error);
+    }
+  };
+
   const addTestCase = async () => {
-    const updatedTestCases = [...testCases, {
-      ...newTestCase,
-      id: Date.now().toString(),
-      status: 'Not Executed'
-    }];
+    const updatedTestCases = [
+      ...testCases,
+      {
+        ...newTestCase,
+        id: Date.now().toString(),
+        status: 'Not Executed'
+      }
+    ];
 
     setTestCases(updatedTestCases);
-    
-    // Save to AsyncStorage
     await AsyncStorage.setItem('testCases', JSON.stringify(updatedTestCases));
     
-    // Reset modal
     setNewTestCase({
       title: '',
       description: '',
@@ -83,26 +83,21 @@ const TestCasesScreen = () => {
         </Text>
         
         <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={[styles.statusButton, styles.passButton]} 
+          <CustomButton
+            style={[styles.statusButton, styles.passButton]}
             onPress={() => updateTestCaseStatus(item.id, 'Passed')}
-          >
-            <Text style={styles.statusButtonText}>Pass</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.statusButton, styles.failButton]} 
+            title="Pass"
+          />
+          <CustomButton
+            style={[styles.statusButton, styles.failButton]}
             onPress={() => updateTestCaseStatus(item.id, 'Failed')}
-          >
-            <Text style={styles.statusButtonText}>Fail</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.statusButton, styles.blockButton]} 
+            title="Fail"
+          />
+          <CustomButton
+            style={[styles.statusButton, styles.blockButton]}
             onPress={() => updateTestCaseStatus(item.id, 'Blocked')}
-          >
-            <Text style={styles.statusButtonText}>Block</Text>
-          </TouchableOpacity>
+            title="Block"
+          />
         </View>
       </View>
     </View>
@@ -253,10 +248,6 @@ const styles = StyleSheet.create({
   },
   blockButton: {
     backgroundColor: '#ffc107'
-  },
-  statusButtonText: {
-    color: '#ffffff',
-    fontSize: 12
   },
   addButton: {
     backgroundColor: '#007bff',
